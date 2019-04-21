@@ -9,6 +9,7 @@ Please refer to LICENSE file for licensing information.
 
 
 #include <avr/io.h>
+#include <avr/eeprom.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <avr/pgmspace.h>
@@ -25,10 +26,11 @@ Please refer to LICENSE file for licensing information.
 #define PIN(x) (*(&x - 2))    /* address of input register of port x */
 
 int line = 0;
+uint8_t message[] = "welcome",readblock[16];
 
 ISR(INT0_vect)
 {
-	if(line%2==1)
+	/*if(line%2==1)
 	{
 		lcd_gotoxy(0,line);
 		lcd_puts(" ");
@@ -37,13 +39,17 @@ ISR(INT0_vect)
 		PORTC ^= (1<<PORTC0);
 		lcd_gotoxy(0,line);
 		lcd_puts(">");	
-	}
-	
+	}*/
+	eeprom_read_block((void *)readblock, (const void *)0, 16);
+	char *readstring;
+	readstring = (char *)readblock;
+	lcd_puts(readstring);
+
 }
 
 ISR(INT1_vect)
 {
-	if(line%2==0)
+	/*if(line%2==0)
 	{
 		lcd_gotoxy(0,line);
 		lcd_puts(" ");
@@ -52,8 +58,8 @@ ISR(INT1_vect)
 		PORTC ^= (1<<PORTC0);
 		lcd_gotoxy(0,line);
 		lcd_puts(">");
-	
-	}
+	}*/
+	eeprom_write_block((const void*)message, (void *)0, 16);
 }
 
 void menu()
@@ -104,32 +110,7 @@ int main(void)
 	uint8_t led = 0;
 	lcd_led(led); //set led
 	
-	menu();
+	//menu();
 	while(1);
-/*
-	while(1) {
-		lcd_led(led); //set led
-		led = !led; //invert led for next loop
 
-		//test loop
-		int i = 0;
-		int line = 0;
-		for(i=0; i<10; i++) {
-			char buf[10];
-			itoa(i, buf, 10);
-			lcd_gotoxy(1, line);
-			lcd_puts("i= ");
-			itoa(i, buf, 10);
-			lcd_gotoxy(4, line);
-			lcd_puts(buf);
-			line++;
-			line %= 2;
-			uart_puts(buf);
-			uart_puts("\r\n");
-			_delay_ms(100);
-		}
-	}
-*/
 }
-
-
