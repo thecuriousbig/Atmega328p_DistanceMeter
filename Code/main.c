@@ -7,37 +7,28 @@ Released under GPLv3.
 Please refer to LICENSE file for licensing information.
 */
 
-
+#define F_CPU 16000000UL
 #include <avr/io.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
-#define F_CPU 16000000UL
 #include <util/delay.h>
 
+#include "vl53l1x/vl53l1_api.h"
 #include "lcdpcf8574.h"
-
-#define UART_BAUD_RATE 19200
 #include "uart.h"
 
-
 #define PIN(x) (*(&x - 2))    /* address of input register of port x */
+#define UART_BAUD_RATE 19200
 
+VL53L1_Dev_t dev;
+VL53L1_DEV   Dev = &dev;
+int status;
 int line = 0;
-
+int sensor_ready = 0;
 ISR(INT0_vect)
 {
-	if(line%2==1)
-	{
-		lcd_gotoxy(0,line);
-		lcd_puts(" ");
-		line--;
-		line %=2;
-		PORTC ^= (1<<PORTC0);
-		lcd_gotoxy(0,line);
-		lcd_puts(">");	
-	}
 	
 }
 
@@ -54,6 +45,28 @@ ISR(INT1_vect)
 		lcd_puts(">");
 	
 	}
+}
+
+void vl53l1x_init()
+{
+	Dev->I2cDevAddr = 0x52;
+	VL53L1_software_reset(Dev);
+	status = VL53L1_WaitDeviceBooted(Dev);
+	status = VL53L1_DataInit(Dev);
+	status = VL53L1_StaticInit(Dev);
+	status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_LONG);
+	status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 50000);
+	status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 50);
+	status = VL53L1_StartMeasurement(Dev);
+	lcd_clrscr();
+	lcd_gotoxy(0,0);
+	if (status)
+	{
+		lcd_puts("SENSOR FAILED");
+		while(1);
+	}
+	lcd_puts("SENSORREADY");
+	_delay_ms(10);
 }
 
 void menu()
@@ -103,33 +116,31 @@ int main(void)
 
 	uint8_t led = 0;
 	lcd_led(led); //set led
+	//menu();
+	vl53l1x_init();
 	
-	menu();
-	while(1);
-/*
-	while(1) {
-		lcd_led(led); //set led
-		led = !led; //invert led for next loop
-
-		//test loop
-		int i = 0;
-		int line = 0;
-		for(i=0; i<10; i++) {
-			char buf[10];
-			itoa(i, buf, 10);
-			lcd_gotoxy(1, line);
-			lcd_puts("i= ");
-			itoa(i, buf, 10);
-			lcd_gotoxy(4, line);
-			lcd_puts(buf);
-			line++;
-			line %= 2;
-			uart_puts(buf);
-			uart_puts("\r\n");
-			_delay_ms(100);
-		}
+	lcd_clrscr();
+	lcd_gotoxy(0,0);
+	while(1)
+	{
+		static VL53L1_RangingMeasurementData_t rangingData;
+		status = VL53L1_WaitMeasurementDataReady(Dev);
+		lcd_puts("NAHEE");
+		//if (!status)
+		//{
+			status = VL53L1_GetRangingMeasurementData(Dev, &rangingData);
+			if (status == 0)
+			{
+				char distance_out[16];
+				sprintf(distance_out, "%d", rangingData.RangeMilliMeter);
+				lcd_puts(distance_out);
+				_delay_ms(1);
+				
+			}
+		//}
+		
 	}
-*/
+
 }
 
 
